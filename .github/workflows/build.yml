@@ -11,20 +11,21 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Extract game files to root
+    - name: Extract game files
       run: |
         unzip game_project.zip
         cp -r game_project/* .
         ls
 
-    - name: Build APK
-      uses: digreatbrian/buildozer-action@v2
+    - name: Build with Buildozer
+      uses: ArtemSBulgakov/buildozer-action@v1
+      id: buildozer
       with:
-        python-version: '3.10'
-        buildozer-cmd: buildozer android debug
+        command: buildozer android debug
+        buildozer_version: stable
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: game-apk
-        path: ./bin/*.apk
+        path: ${{ steps.buildozer.outputs.filename }}
