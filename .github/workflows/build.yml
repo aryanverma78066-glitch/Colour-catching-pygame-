@@ -6,88 +6,19 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-
-    - name: Install Java
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
-
-    - name: Install dependencies
+    - name: Extract game files
       run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          build-essential git zip unzip wget \
-          python3-dev libffi-dev libssl-dev \
-          libsdl2-dev libsdl2-image-dev \
-          libsdl2-mixer-dev libsdl2-ttf-dev
+        unzip game_project.zip -d extracted
+        mv extracted/game_project/* .
 
-    - name: Install buildozer and cython
-      run: pip install buildozer cython==0.29.33
-
-    - name: Setup sdkmanager at exact buildozer path
+    - name: Prepare buildozer.spec
       run: |
-        SDK_DIR=$HOME/.buildozer/android/platform/android-sdk
-        
-        # Download cmdline-tools
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O /tmp/cmdline.zip
-        
-        # Extract to temp
-        unzip -q /tmp/cmdline.zip -d /tmp/cmdline-extract
-        
-        # Place at path buildozer expects: tools/bin/sdkmanager
-        mkdir -p $SDK_DIR/tools/bin
-        mkdir -p $SDK_DIR/cmdline-tools/latest
-        cp -r /tmp/cmdline-extract/cmdline-tools/* $SDK_DIR/cmdline-tools/latest/
-        
-        # Symlink sdkmanager to tools/bin where buildozer looks
-        ln -sf $SDK_DIR/cmdline-tools/latest/bin/sdkmanager $SDK_DIR/tools/bin/sdkmanager
-        ln -sf $SDK_DIR/cmdline-tools/latest/bin/avdmanager $SDK_DIR/tools/bin/avdmanager
-        chmod +x $SDK_DIR/tools/bin/sdkmanager
-        
-        # Accept all licenses
-        mkdir -p $SDK_DIR/licenses
-        printf "\n24333f8a63b6825ea9c5514f83c2829b004d1fee\nd56f5187479451eabf01fb78af6dfcb131a6481e\ne9acab5b5fbb560a72cfaecce8946896ff6aab9d" > $SDK_DIR/licenses/android-sdk-license
-        printf "\n84831b9409646a918e30573bab4c9c91346d8abd\n504667f4c0de7af1a06de9f4b1727b84351f2910" > $SDK_DIR/licenses/android-sdk-preview-license
-        printf "\n601085b94cd77f0b54ff86406957099ebe79c4d6" > $SDK_DIR/licenses/android-googletv-license
-        printf "\nd975f751698a77b662f1254ddbeed3901e976f5a" > $SDK_DIR/licenses/intel-android-extra-license
-        printf "\n33b6a2b64607f11b759f320ef9dff4ae5c47d97a" > $SDK_DIR/licenses/android-sdk-arm-dbt-license
-        
-        # Install build-tools and platforms using full path
-        export JAVA_HOME=/usr/lib/jvm/temurin-17-jdk-amd64
-        $SDK_DIR/cmdline-tools/latest/bin/sdkmanager --sdk_root=$SDK_DIR \
-          "platform-tools" \
-          "platforms;android-33" \
-          "build-tools;33.0.2"
-        
-        # Symlink aidl to tools/bin also
-        ln -sf $SDK_DIR/build-tools/33.0.2/aidl $SDK_DIR/tools/bin/aidl
-        
-        # Verify
-        echo "✅ sdkmanager check:"
-        ls -la $SDK_DIR/tools/bin/
-        echo "✅ build-tools check:"
-        ls $SDK_DIR/build-tools/33.0.2/aidl
-
-    - name: Extract zip
-      run: unzip game_project.zip -d game_project_extracted
-
-    - name: Build APK
-      run: |
-        export JAVA_HOME=/usr/lib/jvm/temurin-17-jdk-amd64
-        export ANDROID_HOME=$HOME/.buildozer/android/platform/android-sdk
-        export PATH=$PATH:$ANDROID_HOME/tools/bin:$ANDROID_HOME/build-tools/33.0.2:$ANDROID_HOME/platform-tools
-        
-        cd game_project_extracted/game_project
+        pip install buildozer
         buildozer init
         sed -i 's/title = .*/title = MyGame/' buildozer.spec
         sed -i 's/package.name = .*/package.name = mygame/' buildozer.spec
@@ -97,12 +28,16 @@ jobs:
         sed -i 's/#orientation = .*/orientation = landscape/' buildozer.spec
         sed -i 's/android.api = .*/android.api = 33/' buildozer.spec
         sed -i 's/android.minapi = .*/android.minapi = 21/' buildozer.spec
-        sed -i 's/android.ndk = .*/android.ndk = 25b/' buildozer.spec
         sed -i 's/#android.accept_sdk_license = False/android.accept_sdk_license = True/' buildozer.spec
-        buildozer android debug
+
+    - name: Build with Buildozer Action
+      uses: ArtemSBulgakov/buildozer-action@v1
+      id: buildozer
+      with:
+        buildozer_version: stable
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: game-apk
-        path: game_project_extracted/game_project/bin/*.apk
+        path: ${{ steps.buildozer.outputs.filename }}
