@@ -5,7 +5,7 @@ package.domain = org.mygame
 source.dir = .
 source.include_exts = py,png,jpg,jpeg,ogg,mp3,wav,ttf,json,atlas
 version = 1.0
-requirements = python3,pygame
+requirements = python3==3.10.12,kivy==2.3.0,pyjnius==1.5.0,hostpython3==3.10.12,pygame
 orientation = landscape
 android.api = 33
 android.minapi = 21
