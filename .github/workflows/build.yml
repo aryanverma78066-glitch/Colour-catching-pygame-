@@ -29,14 +29,24 @@ jobs:
           build-essential git zip unzip \
           python3-dev libffi-dev libssl-dev \
           libsdl2-dev libsdl2-image-dev \
-          libsdl2-mixer-dev libsdl2-ttf-dev \
-          wget
+          libsdl2-mixer-dev libsdl2-ttf-dev
 
     - name: Install buildozer and cython
       run: pip install buildozer cython==0.29.33
 
     - name: Extract zip
       run: unzip game_project.zip -d game_project_extracted
+
+    - name: Pre accept all Android licenses
+      run: |
+        mkdir -p $HOME/.buildozer/android/platform/android-sdk/licenses
+        echo -e "\n24333f8a63b6825ea9c5514f83c2829b004d1fee" > $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+        echo -e "\nd56f5187479451eabf01fb78af6dfcb131a6481e" >> $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+        echo -e "\ne9acab5b5fbb560a72cfaecce8946896ff6aab9d" >> $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+        echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd" > $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
+        echo -e "\n504667f4c0de7af1a06de9f4b1727b84351f2910" >> $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
+        echo -e "\nd975f751698a77b662f1254ddbeed3901e976f5a" > $HOME/.buildozer/android/platform/android-sdk/licenses/android-googletv-license
+        echo -e "\n33b6a2b64607f11b759f320ef9dff4ae5c47d97a" > $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-arm-dbt-license
 
     - name: Build APK
       run: |
@@ -51,8 +61,8 @@ jobs:
         sed -i 's/android.api = .*/android.api = 33/' buildozer.spec
         sed -i 's/android.minapi = .*/android.minapi = 21/' buildozer.spec
         sed -i 's/android.ndk = .*/android.ndk = 25b/' buildozer.spec
-        sed -i 's/#android.accept_sdk_license = False/android.accept_sdk_license = True/' buildozer.spec
-        buildozer android debug
+        echo "android.accept_sdk_license = True" >> buildozer.spec
+        printf 'y\n%.0s' {1..20} | buildozer android debug
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
